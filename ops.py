@@ -1,5 +1,12 @@
 import tensorflow as tf
 
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
+config = tf.ConfigProto(
+        gpu_options=gpu_options
+    )
+config.gpu_options.allow_growth = True
+config.log_device_placement = True
+sess = tf.Session(config=config)
 
 def batchnorm(x, train_phase, scope_bn):
     #Batch Normalization

@@ -3,6 +3,7 @@ import tensorflow as tf
 from PIL import Image
 import numpy as np
 import os
+import cv2
 
 class Denoise():
     def __init__(self, batch_size, img_h, img_w, img_c, lambd, epoch, clean_path, noised_path, save_path, epsilon, learning_rate, beta1, beta2):
@@ -30,7 +31,7 @@ class Denoise():
         self.sess.run(tf.global_variables_initializer())
 
     def train(self):
-        clean_names = os.listdir(self.clean_path)
+        clean_names = os.listdir(self.noised_path)
         saver = tf.train.Saver()
         step = 0
         for epoch in range(self.epoch):
@@ -39,21 +40,40 @@ class Denoise():
                 batch_clean = np.zeros([self.batch_size, self.img_h, self.img_w, self.img_c])
                 batch_noised = np.zeros([self.batch_size, self.img_h, self.img_w, self.img_c])
                 for idx, name in enumerate(clean_names[i*self.batch_size:i*self.batch_size+self.batch_size]):
-                    batch_clean[idx, :, :, 0] = np.array(Image.open(self.clean_path+name).resize([self.img_h, self.img_w]))
-                    batch_noised[idx, :, :, 0] = np.array(Image.open(self.noised_path + name[:-3]+"png").resize([self.img_h, self.img_w]))
+                    # print(self.clean_path + name+"  "+name[3:])
+                    image = cv2.imread(self.clean_path + name)
+                    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                    cv2.imwrite(os.path.join(self.clean_path +name), gray)
+                    image = cv2.imread(self.noised_path + name)
+                    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                    cv2.imwrite(os.path.join(self.noised_path +name), gray)
+
+                   # m=np.array(Image.open(self.clean_path+name[0]+name[3:]).resize([self.img_w, self.img_h]))
+                   # n=batch_noised[idx, :, :, 0]
+                    #print(n.shape)
+                    #print(m.shape)
+                    print(self.clean_path+name)
+                    batch_clean[idx, :, :, 0] = np.array(Image.open(self.clean_path+name).resize([self.img_w, self.img_h]))
+                    batch_noised[idx, :, :, 0] = np.array(Image.open(self.noised_path + name).resize([self.img_w, self.img_h]))
                 self.sess.run(self.Opt_D, feed_dict={self.img_clean: batch_clean, self.img_noised: batch_noised})
                 self.sess.run(self.Opt_G, feed_dict={self.img_clean: batch_clean, self.img_noised: batch_noised})
                 if step % 10 == 0:
                     [d_loss, g_loss, l1_loss, denoised] = self.sess.run([self.d_loss, self.g_loss, self.l1_loss, self.img_denoised],
                                                                         feed_dict={self.img_clean: batch_clean, self.img_noised: batch_noised})
                     print("Step: %d, D_loss: %g, G_loss: %g, L1_loss: %g"%(step, d_loss, g_loss, l1_loss))
-                    Image.fromarray(np.uint8(denoised[0, :, :, 0])).save("./results//"+str(step)+".jpg")
+                    Image.fromarray(np.uint8(denoised[0, :, :, 0])).save("./results/"+str(step)+".jpg")
             saver.save(self.sess, self.save_path + "model.ckpt")
 
     def test(self, test_path, para_path):
         saver = tf.train.Saver()
-        saver.restore(self.sess, para_path+".\\model.ckpt")
-        img = np.float32(np.array(Image.open(test_path).convert("1")))*255
+        saver.restore(self.sess, para_path+"model.ckpt")
+        image = cv2.imdecode(test_path, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        #cv2.imwrite(os.path.join(self.clean_path + name), gray)
+        #img = np.float32(np.array(Image.open(test_path).convert("1")))*255
         [denoised] = self.sess.run([self.img_denoised],feed_dict={self.img_noised: img[np.newaxis, :, :, np.newaxis]})
-        Image.fromarray(np.uint8(np.concatenate((img, denoised[0, :, :, 0]), axis=1))).show()
+        res = Image.fromarray(np.uint8(denoised[0, :, :, 0]))#.show()np.concatenate((img, , axis=1)
+        res.save("output.png")
+        #return res
+        #img.save("results/n.png")
 
