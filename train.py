@@ -4,6 +4,8 @@ from PIL import Image
 import numpy as np
 import os
 import cv2
+import base64
+from io import BytesIO
 
 class Denoise():
     def __init__(self, batch_size, img_h, img_w, img_c, lambd, epoch, clean_path, noised_path, save_path, epsilon, learning_rate, beta1, beta2):
@@ -64,16 +66,20 @@ class Denoise():
                     Image.fromarray(np.uint8(denoised[0, :, :, 0])).save("./results/"+str(step)+".jpg")
             saver.save(self.sess, self.save_path + "model.ckpt")
 
-    def test(self, test_path, para_path):
+    def load(self, para_path):
         saver = tf.train.Saver()
-        saver.restore(self.sess, para_path+"model.ckpt")
-        image = cv2.imdecode(test_path, cv2.IMREAD_COLOR)
-        img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        saver.restore(self.sess, para_path + "model.ckpt")
+
+    def test(self, img):
+
         #cv2.imwrite(os.path.join(self.clean_path + name), gray)
         #img = np.float32(np.array(Image.open(test_path).convert("1")))*255
         [denoised] = self.sess.run([self.img_denoised],feed_dict={self.img_noised: img[np.newaxis, :, :, np.newaxis]})
         res = Image.fromarray(np.uint8(denoised[0, :, :, 0]))#.show()np.concatenate((img, , axis=1)
-        res.save("output.png")
-        #return res
+        buffered = BytesIO()
+        res.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue())
+        #res.save("output.png")
+        return img_str
         #img.save("results/n.png")
 
