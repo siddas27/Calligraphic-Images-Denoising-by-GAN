@@ -1,5 +1,6 @@
 from ops import *
 
+
 def RDB(inputs):
     G = 32
     with tf.variable_scope("conv1"):
@@ -21,6 +22,7 @@ def RDB(inputs):
         Fd_6 = tf.nn.relu(InstanceNorm(conv("conv6", temp, G, 3, 1), "IN6"))
     Fd_LF = (conv("conv7", tf.concat([inputs, Fd_1, Fd_2, Fd_3, Fd_4, Fd_5, Fd_6], axis=3), int(inputs.shape[-1]), 1, 1))
     return Fd_LF + inputs
+
 
 class RDBG:
     def __init__(self, name):
